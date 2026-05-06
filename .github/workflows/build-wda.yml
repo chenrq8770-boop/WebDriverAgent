@@ -1,0 +1,57 @@
+name: Build WebDriverAgent IPA
+
+on:
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  build:
+    runs-on: macos-14  # Apple Silicon M1 runner，免费额度可用
+
+    steps:
+      - name: Checkout WebDriverAgent
+        uses: actions/checkout@v4
+        with:
+          repository: appium/WebDriverAgent
+          ref: master
+
+      - name: Setup Xcode version
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.4'
+
+      - name: Install dependencies
+        run: |
+          brew install carthage
+          npm install -g npm@latest
+
+      - name: Bootstrap WebDriverAgent
+        run: ./Scripts/bootstrap.sh
+
+      - name: Build WebDriverAgent for device
+        run: |
+          xcodebuild build-for-testing \
+            -scheme WebDriverAgentRunner \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build_output \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+      - name: Package IPA
+        run: |
+          cd build_output/Build/Products/Release-iphoneos
+          mkdir -p Payload
+          cp -r WebDriverAgentRunner-Runner.app Payload/
+          # iOS 17+ 需要删除 XCTest frameworks（你的 15.8.2 不需要，但删了也不影响）
+          rm -f Payload/WebDriverAgentRunner-Runner.app/Frameworks/XC*.dylib 2>/dev/null || true
+          zip -r WebDriverAgent.ipa Payload
+          mv WebDriverAgent.ipa $GITHUB_WORKSPACE/WebDriverAgent.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WebDriverAgent-ipa
+          path: WebDriverAgent.ipa
+          retention-days: 7
