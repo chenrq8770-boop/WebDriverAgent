@@ -5,18 +5,28 @@ jobs:
   build:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: appium/WebDriverAgent
-          ref: master
-      - run: ./Scripts/bootstrap.sh
-      - run: |
-          xcodebuild build-for-testing -scheme WebDriverAgentRunner -sdk iphoneos -configuration Release -derivedDataPath build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
-      - run: |
+      - name: Clone WebDriverAgent
+        run: git clone --depth=1 https://github.com/appium/WebDriverAgent.git .
+      - name: Bootstrap
+        run: ./Scripts/bootstrap.sh
+      - name: Build for device
+        run: |
+          xcodebuild build-for-testing \
+            -scheme WebDriverAgentRunner \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Package IPA
+        run: |
           cd build/Build/Products/Release-iphoneos
-          mkdir Payload && cp -r *.app Payload/
+          mkdir Payload
+          cp -r *.app Payload/
           zip -r WDA.ipa Payload
-      - uses: actions/upload-artifact@v4
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
         with:
           name: WDA-IPA
           path: build/Build/Products/Release-iphoneos/WDA.ipa
