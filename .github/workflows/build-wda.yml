@@ -5,20 +5,20 @@ jobs:
   build:
     runs-on: macos-14
     steps:
-      - name: Clone and debug
-        run: |
-          echo "=== Clone WDA ==="
-          git clone --depth=1 https://github.com/appium/WebDriverAgent.git /tmp/wda-src
-          echo "=== List files ==="
-          ls -la /tmp/wda-src/
-          echo "=== Scripts dir ==="
-          ls -la /tmp/wda-src/Scripts/ || echo "NO Scripts dir!"
-      - name: Bootstrap
-        run: /tmp/wda-src/Scripts/bootstrap.sh
-      - name: Build for device
+      - name: Clone WebDriverAgent
+        run: git clone --depth=1 https://github.com/appium/WebDriverAgent.git /tmp/wda-src
+      - name: Build for device (no signing)
         run: |
           cd /tmp/wda-src
-          xcodebuild build-for-testing -scheme WebDriverAgentRunner -sdk iphoneos -configuration Release -derivedDataPath build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          xcodebuild build-for-testing \
+            -scheme WebDriverAgentRunner \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
       - name: Package IPA
         run: |
           cd /tmp/wda-src/build/Build/Products/Release-iphoneos
