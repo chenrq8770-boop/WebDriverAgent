@@ -5,32 +5,26 @@ jobs:
   build:
     runs-on: macos-14
     steps:
-      - name: Clone WebDriverAgent
+      - name: Clone and debug
         run: |
-          cd $RUNNER_TEMP
-          git clone --depth=1 https://github.com/appium/WebDriverAgent.git wda-src
-          echo "WDA_DIR=$RUNNER_TEMP/wda-src" >> $GITHUB_ENV
+          echo "=== Clone WDA ==="
+          git clone --depth=1 https://github.com/appium/WebDriverAgent.git /tmp/wda-src
+          echo "=== List files ==="
+          ls -la /tmp/wda-src/
+          echo "=== Scripts dir ==="
+          ls -la /tmp/wda-src/Scripts/ || echo "NO Scripts dir!"
       - name: Bootstrap
-        run: $WDA_DIR/Scripts/bootstrap.sh
+        run: /tmp/wda-src/Scripts/bootstrap.sh
       - name: Build for device
         run: |
-          cd $WDA_DIR
-          xcodebuild build-for-testing \
-            -scheme WebDriverAgentRunner \
-            -sdk iphoneos \
-            -configuration Release \
-            -derivedDataPath build \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+          cd /tmp/wda-src
+          xcodebuild build-for-testing -scheme WebDriverAgentRunner -sdk iphoneos -configuration Release -derivedDataPath build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
       - name: Package IPA
         run: |
-          cd $WDA_DIR/build/Build/Products/Release-iphoneos
-          mkdir Payload
-          cp -r *.app Payload/
-          zip -r WDA.ipa Payload
+          cd /tmp/wda-src/build/Build/Products/Release-iphoneos
+          mkdir Payload && cp -r *.app Payload/ && zip -r WDA.ipa Payload
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: WDA-IPA
-          path: ${{ env.WDA_DIR }}/build/Build/Products/Release-iphoneos/WDA.ipa
+          path: /tmp/wda-src/build/Build/Products/Release-iphoneos/WDA.ipa
