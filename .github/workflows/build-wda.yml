@@ -1,65 +1,22 @@
-name: Build WebDriverAgent IPA
-
+name: Build WDA IPA
 on:
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: macos-14
-
     steps:
-      - name: Checkout appium/WebDriverAgent
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           repository: appium/WebDriverAgent
           ref: master
-          fetch-depth: 1
-
-      - name: Debug - List files
-        run: |
-          echo "=== Current directory ==="
-          pwd
-          echo "=== Top-level files ==="
-          ls -la
-          echo "=== Scripts dir ==="
-          ls Scripts/ || echo "Scripts dir NOT found"
-
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
-
-      - name: Install dependencies
-        run: |
-          brew install carthage || true
-          npm install -g npm@latest || true
-
-      - name: Bootstrap
-        run: ./Scripts/bootstrap.sh
-
-      - name: Build for device
-        run: |
-          xcodebuild build-for-testing \
-            -scheme WebDriverAgentRunner \
-            -sdk iphoneos \
-            -configuration Release \
-            -derivedDataPath build_output \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            GCC_WARN_INHIBIT_ALL_WARNINGS=YES
-
-      - name: Package IPA
-        run: |
-          cd build_output/Build/Products/Release-iphoneos
-          mkdir -p Payload
-          cp -r WebDriverAgentRunner-Runner.app Payload/
-          rm -f Payload/WebDriverAgentRunner-Runner.app/Frameworks/XC*.dylib 2>/dev/null || true
-          zip -r WebDriverAgent.ipa Payload
-          mv WebDriverAgent.ipa $GITHUB_WORKSPACE/WebDriverAgent.ipa
-
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
+      - run: ./Scripts/bootstrap.sh
+      - run: |
+          xcodebuild build-for-testing -scheme WebDriverAgentRunner -sdk iphoneos -configuration Release -derivedDataPath build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+      - run: |
+          cd build/Build/Products/Release-iphoneos
+          mkdir Payload && cp -r *.app Payload/
+          zip -r WDA.ipa Payload
+      - uses: actions/upload-artifact@v4
         with:
-          name: WebDriverAgent-ipa
-          path: WebDriverAgent.ipa
-          retention-days: 7
+          name: WDA-IPA
+          path: build/Build/Products/Release-iphoneos/WDA.ipa
