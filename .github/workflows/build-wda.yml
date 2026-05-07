@@ -7,7 +7,23 @@ jobs:
     steps:
       - name: Clone WebDriverAgent
         run: git clone --depth=1 https://github.com/appium/WebDriverAgent.git /tmp/wda-src
-      - name: Build for device
+      - name: Set Xcode project settings
+        run: |
+          cd /tmp/wda-src
+          # Set development team and automatic signing in xcodeproj
+          ruby -e '
+            require "xcodeproj"
+            project = Xcodeproj::Project.open("WebDriverAgent.xcodeproj")
+            project.targets.each do |target|
+              target.build_configurations.each do |config|
+                config.build_settings["CODE_SIGN_STYLE"] = "Automatic"
+                config.build_settings["DEVELOPMENT_TEAM"] = "62QYD66L95"
+                config.build_settings["PRODUCT_BUNDLE_IDENTIFIER"] = "com.facebook.WebDriverAgentRunner.xctrunner"
+              end
+            end
+            project.save
+          '
+      - name: Build and sign for device
         run: |
           cd /tmp/wda-src
           xcodebuild build-for-testing \
@@ -15,36 +31,15 @@ jobs:
             -sdk iphoneos \
             -configuration Release \
             -derivedDataPath build \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            COMPILER_INDEX_STORE_ENABLE=NO
-      - name: Add XCTest entitlements
-        run: |
-          APP_DIR=/tmp/wda-src/build/Build/Products/Release-iphoneos/WebDriverAgentRunner-Runner.app
-          cat > /tmp/wda_ent.plist << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>com.apple.developer.xctest-identifier</key>
-            <array>
-              <string>com.facebook.WebDriverAgentRunner.xctrunner</string>
-            </array>
-            <key>get-task-allow</key>
-            <true/>
-          </dict>
-          </plist>
-          EOF
-          # Remove CodeSignature first
-          rm -rf "$APP_DIR/_CodeSignature"
-          # Inject entitlements into the app's Info.plist
-          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" "$APP_DIR/Info.plist" 2>/dev/null || true
-          # Copy entitlements as a resource so Sideloadly picks it up
-          cp /tmp/wda_ent.plist "$APP_DIR/entitlements.plist"
+            DEVELOPMENT_TEAM=62QYD66L95 \
+            CODE_SIGN_STYLE=Automatic \
+            CODE_SIGN_IDENTITY="iPhone Developer" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            -allowProvisioningUpdates
       - name: Package IPA
         run: |
           cd /tmp/wda-src/build/Build/Products/Release-iphoneos
+          ls -la *.app/
           mkdir Payload && cp -r *.app Payload/ && zip -r WDA.ipa Payload
       - name: Upload IPA
         uses: actions/upload-artifact@v4
